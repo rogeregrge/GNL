@@ -1,0 +1,120 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   get_next_line_bonus.c                              :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: rvidal <rvidal@student.42sp.org.br>        +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2022/04/20 14:13:06 by rvidal            #+#    #+#             */
+/*   Updated: 2022/04/20 14:31:08 by rvidal           ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "get_next_line_bonus.h"
+
+static int	is_endl(char *str)
+{
+	int	i;
+
+	i = 0;
+	while (str[i] != '\n' && str[i] != '\0')
+		i++;
+	if (str[i] == '\n')
+		return (1);
+	return (0);
+}
+
+static char	*get_line(char **buffer_backup)
+{
+	char	*line;
+	int		i;
+
+	i = 0;
+	if (!buffer_backup)
+		return (NULL);
+	while ((*buffer_backup)[i] != '\0' && (*buffer_backup)[i] != '\n')
+		i++;
+	line = ft_substr(*buffer_backup, 0, i + is_endl(*buffer_backup));
+	if (!line)
+	{
+		free(line);
+		return (NULL);
+	}
+	return (line);
+}
+
+static char	*get_backup(char **buffer_backup)
+{
+	char	*backup;
+	int		i;
+
+	i = 0;
+	if (!buffer_backup)
+		return (NULL);
+	while ((*buffer_backup)[i] != '\0' && (*buffer_backup)[i] != '\n')
+		i++;
+	if ((*buffer_backup)[i] == '\0')
+	{
+		free(*buffer_backup);
+		return (NULL);
+	}
+	backup = ft_substr(*buffer_backup, i + 1, ft_strlen(*buffer_backup) - i);
+	if (!backup)
+	{
+		free(backup);
+		return (NULL);
+	}
+	i++;
+	free(*buffer_backup);
+	return (backup);
+}
+
+static int	read_file(int fd, char **buffer, char **buffer_backup, char **line)
+{
+	int		bytes_read;
+	char	*holder;
+
+	bytes_read = 1;
+	while (!ft_strchr(*buffer_backup, '\n') && bytes_read > 0)
+	{
+		bytes_read = read(fd, *buffer, BUFFER_SIZE);
+		(*buffer)[bytes_read] = '\0';
+		holder = *buffer_backup;
+		*buffer_backup = ft_strjoin(holder, *buffer);
+		free(holder);
+	}
+	free(*buffer);
+	*line = get_line(buffer_backup);
+	if (**line == '\0')
+	{
+		free(*line);
+		*line = NULL;
+	}
+	*buffer_backup = get_backup(buffer_backup);
+	return (bytes_read);
+}
+
+char	*get_next_line(int fd)
+{
+	char		*buffer;
+	static char	*buffer_backup[OPEN_MAX + 1];
+	char		*line;
+	int			bytes_read;
+
+	if (fd < 0 || BUFFER_SIZE <= 0 || fd > OPEN_MAX)
+		return (NULL);
+	buffer = (char *)malloc(sizeof(char) * (BUFFER_SIZE + 1));
+	if (!buffer)
+		return (NULL);
+	if (read(fd, buffer, 0) < 0)
+	{
+		free(buffer);
+		return (NULL);
+	}
+	if (!buffer_backup[fd])
+		buffer_backup[fd] = ft_strdup("");
+	bytes_read = read_file(fd, &buffer, &buffer_backup[fd], &line);
+	if (bytes_read == 0 && !line)
+		return (NULL);
+	return (line);
+}
